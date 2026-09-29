@@ -1,0 +1,6 @@
+{
+  "name": "LogoForge AI",
+  "description": "Generate stunning business logos using AI with dynamic vector variations, styles, and high-res export in a single standalone application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
