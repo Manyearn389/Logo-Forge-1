@@ -983,6 +983,48 @@
       display: block;
     }
 
+    /* Direct Child Copy SVG Button inside .logo-preview-card */
+    .btn-copy-svg-preview {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: #f1f5f9;
+      background: rgba(18, 14, 34, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      user-select: none;
+    }
+    .btn-copy-svg-preview:hover {
+      background: rgba(99, 102, 241, 0.9);
+      border-color: rgba(165, 180, 252, 0.5);
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(99, 102, 241, 0.45);
+    }
+    .btn-copy-svg-preview:active {
+      transform: translateY(0);
+      background: rgba(79, 70, 229, 0.95);
+    }
+    .btn-copy-svg-preview.copied {
+      background: rgba(16, 185, 129, 0.95) !important;
+      border-color: rgba(110, 231, 183, 0.5) !important;
+      color: #ffffff !important;
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4) !important;
+    }
+
     /* Loading Overlay inside Preview Card (Requirement 10) */
     .loading-wrap {
       display: none;
@@ -2851,6 +2893,15 @@
                 <!-- Live preview rendered by JS -->
               </div>
 
+              <!-- Direct Child: Copy SVG Button -->
+              <button type="button" class="btn-copy-svg-preview" id="btnCopyGenSvg" onclick="app.copyLiveSvgMarkup(this)" title="Copy SVG Vector Code">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span>Copy SVG</span>
+              </button>
+
               <!-- Centered Loading State Overlay (Requirement 10) -->
               <div class="loading-wrap" id="genLoadingWrap">
                 <div class="loading-spinner"></div>
@@ -3065,6 +3116,14 @@
             <div class="logo-canvas-wrap" id="mainCanvasWrap">
               <!-- Actual generated logo rendered here as high-res SVG or image -->
             </div>
+            <!-- Direct Child: Copy SVG Button -->
+            <button type="button" class="btn-copy-svg-preview" id="btnCopyMainSvg" onclick="app.copySvgMarkup(this)" title="Copy SVG Vector Code">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Copy SVG</span>
+            </button>
           </div>
 
           <!-- Prominent Result Logo Size Display Box (User Requirement: After generation, show: Logo Size \n 1024 × 1024 px) -->
@@ -7506,18 +7565,102 @@
         return this.performExport('JPG');
       }
 
-      copySvgMarkup() {
+      copyLiveSvgMarkup(btnEl) {
+        let svgCode = '';
+        const previewContent = document.getElementById('genPreviewContent');
+        const existingSvg = previewContent ? previewContent.querySelector('svg') : null;
+
+        try {
+          const baseGlyphs = VectorLogoEngine.getGlyphsForIndustry(this.config.industry, this.config.style);
+          const liveConfig = {
+            ...this.config,
+            id: "live_copy",
+            variationIndex: 0,
+            paletteObj: PALETTES.find(p => p.id === this.config.palette) || PALETTES[0],
+            glyph: this.customImageSrc ? "CUSTOM_IMAGE" : (baseGlyphs[0] || "PRISM_CUBE"),
+            customImageSrc: this.customImageSrc,
+            fontObj: FONTS.find(f => f.id === this.config.fontChoice) || FONTS[0],
+            isDarkBg: this.config.darkBackground,
+            isTransparentBg: this.config.isTransparentBg
+          };
+          svgCode = VectorLogoEngine.renderSvgMarkup(liveConfig, 1024, 1024, true, 'copy');
+        } catch (e) {
+          if (existingSvg) {
+            svgCode = existingSvg.outerHTML;
+          }
+        }
+
+        if (!svgCode && existingSvg) {
+          svgCode = existingSvg.outerHTML;
+        }
+
+        if (!svgCode) {
+          this.showToast("No SVG code available to copy.");
+          return;
+        }
+
+        this.copyTextToClipboard(svgCode, "SVG code copied to clipboard!", btnEl);
+      }
+
+      copySvgMarkup(btnEl) {
         const active = this.currentVariations && this.currentVariations[this.selectedVariationIndex];
         if (!active) {
           this.showToast("No active logo to copy.");
           return;
         }
         const svgMarkup = VectorLogoEngine.renderSvgMarkup(active, 1024, 1024, true, 'copy');
+        this.copyTextToClipboard(svgMarkup, "SVG code copied to clipboard!", btnEl);
+      }
+
+      copyTextToClipboard(text, successMsg = "Copied to clipboard!", btnEl = null) {
+        const markButtonCopied = () => {
+          if (btnEl && btnEl.classList) {
+            const originalHtml = btnEl.innerHTML;
+            btnEl.classList.add('copied');
+            btnEl.innerHTML = `
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span>Copied!</span>
+            `;
+            setTimeout(() => {
+              btnEl.classList.remove('copied');
+              btnEl.innerHTML = originalHtml;
+            }, 1800);
+          }
+        };
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          navigator.clipboard.writeText(text).then(() => {
+            this.showToast(successMsg);
+            markButtonCopied();
+          }).catch(() => {
+            this.fallbackCopyText(text, successMsg, markButtonCopied);
+          });
+        } else {
+          this.fallbackCopyText(text, successMsg, markButtonCopied);
+        }
+      }
+
+      fallbackCopyText(text, successMsg, onSuccess) {
         try {
-          navigator.clipboard.writeText(svgMarkup);
-          this.showToast("SVG source code copied to clipboard!");
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          textArea.style.position = 'fixed';
+          textArea.style.top = '-9999px';
+          textArea.style.left = '-9999px';
+          textArea.setAttribute('readonly', '');
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textArea);
+          if (successful) {
+            this.showToast(successMsg);
+            if (typeof onSuccess === 'function') onSuccess();
+          } else {
+            this.showToast("Could not copy to clipboard.");
+          }
         } catch (e) {
-          this.showToast("Could not copy SVG code to clipboard.");
+          this.showToast("Could not copy to clipboard.");
         }
       }
 
